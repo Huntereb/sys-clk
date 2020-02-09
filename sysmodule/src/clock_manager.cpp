@@ -75,6 +75,7 @@ void ClockManager::Tick()
     if (this->RefreshContext() || this->config->Refresh())
     {
         std::uint32_t hz = 0;
+        std::uint32_t hzDefault = 0;
         for (unsigned int module = 0; module < SysClkModule_EnumMax; module++)
         {
             hz = this->context->overrideFreqs[module];
@@ -82,6 +83,8 @@ void ClockManager::Tick()
             if(!hz)
             {
                 hz = this->config->GetAutoClockHz(this->context->applicationTid, (SysClkModule)module, this->context->profile);
+                hzDefault = this->config->GetAutoClockHz(0x0999999999999999ULL, (SysClkModule)module, this->context->profile);
+                if (!hz && hzDefault) hz = hzDefault;
             }
 
             if (hz)
@@ -144,9 +147,18 @@ bool ClockManager::RefreshContext()
         hz = Clocks::GetCurrentHz((SysClkModule)module);
         if (hz != 0 && hz != this->context->freqs[module])
         {
-            FileUtils::LogLine("[mgr] %s clock change: %u.%u Mhz", Clocks::GetModuleName((SysClkModule)module, true), hz/1000000, hz/100000 - hz/1000000*10);
-            this->context->freqs[module] = hz;
-            hasChanged = true;
+            if (FileUtils::IsBoostEnabled() && Clocks::GetCurrentHz((SysClkModule)0) == 1785000000 && Clocks::GetCurrentHz((SysClkModule)1) == 76800000) {
+                FileUtils::LogLine("[mgr] Boost mode started");
+                while (Clocks::GetCurrentHz((SysClkModule)0) == 1785000000 && Clocks::GetCurrentHz((SysClkModule)1) == 76800000) {
+                    this->WaitForNextTick();
+                }
+                FileUtils::LogLine("[mgr] Boost mode ended");
+                return hasChanged;
+            } else {
+                FileUtils::LogLine("[mgr] %s clock change: %u.%u Mhz", Clocks::GetModuleName((SysClkModule)module, true), hz/1000000, hz/100000 - hz/1000000*10);
+                this->context->freqs[module] = hz;
+                hasChanged = true;
+            }
         }
 
         hz = this->GetConfig()->GetOverrideHz((SysClkModule)module);

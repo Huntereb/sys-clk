@@ -15,6 +15,7 @@ static LockableMutex g_log_mutex;
 static LockableMutex g_csv_mutex;
 static std::atomic_bool g_has_initialized = false;
 static bool g_log_enabled = false;
+static bool g_boost_enabled = false;
 static std::uint64_t g_last_flag_check = 0;
 
 extern "C" void __libnx_init_time(void);
@@ -124,7 +125,21 @@ void FileUtils::RefreshFlags(bool force)
         g_log_enabled = false;
     }
 
+    file = fopen(FILE_BOOST_FLAG_PATH, "r");
+    if (file)
+    {
+        g_boost_enabled = true;
+        fclose(file);
+    } else {
+        g_boost_enabled = false;
+    }
+
     g_last_flag_check = now;
+}
+
+bool FileUtils::IsBoostEnabled()
+{
+    return g_boost_enabled;
 }
 
 void FileUtils::InitializeAsync()
